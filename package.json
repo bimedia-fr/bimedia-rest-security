@@ -1,0 +1,24 @@
+{
+  "name": "bimedia-rest-security",
+  "version": "0.0.1",
+  "description": "implementation de la sécurité pour les services rest Bimedia",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "vows --spec test/test*.js"
+  },
+  "keywords": [
+    "rest",
+    "security",
+    "bimedia"
+  ],
+  "author": "jerome creignou",
+  "license": "BSD-2-Clause",
+  "devDependencies": {
+    "vows": "~0.7.0",
+    "restify": "~2.6.1",
+    "request": "~2.33.0"
+  },
+  "dependencies": {
+    "restify-errors": "~2.6.1"
+  }
+}
