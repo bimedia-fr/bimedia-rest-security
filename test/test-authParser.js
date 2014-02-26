@@ -12,7 +12,8 @@ var req = {
 var reqAlt = {
     params : {
         BWSlicence: 'mdzmefapzo',
-        signature: 'dzbn'
+        signature: 'dzbn',
+        timestamp: 1393448588772
     }
 };
 
