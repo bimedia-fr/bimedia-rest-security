@@ -32,6 +32,9 @@ module.exports = function () {
     }
 
     // Méthode permettant de lire les informations d'authorisation depuis les paramètres de requête.
+    // Les paramètres exploités sont les suivants :
+    // * BWSlicence : la licence
+    // * signature : la signature de la requête
     function parseFromParams(params) {
         var auth = {
             scheme : 'BWS'
@@ -43,6 +46,7 @@ module.exports = function () {
         return auth;
     }
     
+    // Fonction d'analyse des information d'authentification.
     return function _authParser(req, res, next) {
         var auth = {}, licence, signature;
         
@@ -53,7 +57,7 @@ module.exports = function () {
         
         var params = parseParams(req);
         if (params.BWSlicence && params.signature) {
-            req.authorization =  parseFromParams(params);
+            req.authorization = parseFromParams(params);
             return next();
         }
         
