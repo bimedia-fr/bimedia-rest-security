@@ -39,7 +39,7 @@ module.exports = function (secretKeyResolver) {
     // vérifie que la signature de la requête est conforme à la signature du client.
     return function _authChecker(req, res, next) {
         if (!req.authorization) {
-            return next(new errors.InvalidCredentialsError('please provide credentials'));
+            return next(new errors.InvalidCredentialsError('missing credentials'));
         }
         var auth = req.authorization;
         if (auth.scheme != 'BWS') {

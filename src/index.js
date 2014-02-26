@@ -23,6 +23,6 @@
 // * [authChecker.js](authChecker.html) pour la vérifcation de l'authentification.
 // * [authParser.js](authParser.html) pour l'analyse de la requête.
 module.exports = {
-    authChecker : require('./authChecker'),
-    authParser : require('./authParser')
+    authChecker: require('./authChecker'),
+    authParser: require('./authParser')
 };

@@ -17,7 +17,7 @@ var reqAlt = {
 };
 
 var reqUrl = {
-    url : '/?BWSlicence=mdzmefapzo&signature=dzbn'
+    url : '/?BWSlicence=mdzmefapzo&signature=dzbn&timestamp=1393448588772'
 };
 
 
@@ -51,7 +51,7 @@ vows.describe('BWS auth parser').addBatch({
                 }
             }
         },
-        'can receieve request with `BWSlicence` and `signature` parameter' : {
+        'can receieve request params already parsed' : {
             topic : function (authParser) {
                 authParser(reqAlt, {send : function () {}}, this.callback);
             },
@@ -77,7 +77,7 @@ vows.describe('BWS auth parser').addBatch({
                 }
             }
         },
-        'can receieve request with `BWSlicence` and `signature` parameter from url' : {
+        'can receieve request with unparsed parameters from url' : {
             topic : function (authParser) {
                 authParser(reqUrl, {send : function () {}}, this.callback);
             },

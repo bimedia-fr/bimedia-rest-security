@@ -63,9 +63,9 @@ vows.describe('security plugin').addBatch({
             apiTest.get('/', null, this.callback);
         },
         'sends 401 ' : apiTest.assertStatus(401),
-        'with an error message : `please provide credentials`' : function (err, res, body) {
+        'with an error message : `missing credentials`' : function (err, res, body) {
             var parsed = JSON.parse(body);
-            assert.equal(parsed.message, 'please provide credentials');
+            assert.equal(parsed.message, 'missing credentials');
         }
     },
     'if auth header is an invalid a scheme' : {
