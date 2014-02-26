@@ -26,9 +26,9 @@ vows.describe('BWS auth checker').addBatch({
                 var self = this;
                 return checker({}, {}, function (err) { self.callback(null, err); });
             },
-            'and returns `401, not authorized, please provide credentials.`': function (error) {
+            'and returns `401, not authorized, missing credentials.`': function (error) {
                 assert.equal(error.statusCode, 401);
-                assert.equal(error.message, 'please provide credentials');
+                assert.equal(error.message, 'missing credentials');
             }
         },
         'can check requests with invalid authorization scheme': {
