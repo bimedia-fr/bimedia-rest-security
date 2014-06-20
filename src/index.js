@@ -7,7 +7,7 @@
 
 // ###Usage :
 // ```js
-//  var bimedia = require(bimediaSecurity)
+//  var bimedia = require('bimediaSecurity')
 //  var server = restify.createServer();
 //  server.use(bimedia.authParser());
 //
