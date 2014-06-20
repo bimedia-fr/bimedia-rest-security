@@ -24,13 +24,13 @@ module.exports = function (secretKeyResolver) {
     
     // récupère la liste des entêtes additionnelles à prendre en compte dans la signature.
     function bmzHeaders(req) {
-        return [];
+        return [''];
     }
     
     // extrait les informations à signer de la requête `req` et la signe avec la clé `key`.
     function getSignature(req, key) {
         var bobyMD5 = req.headers['content-md5'] || '';
-        var elems = [req.method, bobyMD5, req.headers['content-type'] || '', req.headers.date || ''];
+        var elems = [req.method, bobyMD5, req.headers['content-type'] || '', req.headers['x-bm-date'] || ''];
         elems = elems.concat(bmzHeaders(req));
         elems.push(req.url);
         return hash(elems.join('\n'), key);
