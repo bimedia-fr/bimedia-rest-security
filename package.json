@@ -1,6 +1,6 @@
 {
   "name": "bimedia-rest-security",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "implementation de la sécurité pour les services rest Bimedia",
   "main": "src/index.js",
   "scripts": {
