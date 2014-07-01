@@ -7,6 +7,14 @@
     "test": "vows --spec test/test*.js",
     "docs": "docco src/*.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/bimedia-fr/bimedia-rest-security.git"
+  },
+  "homepage": "https://github.com/bimedia-fr/bimedia-rest-security",
+  "bugs": {
+    "url": "https://github.com/bimedia-fr/bimedia-rest-security/issues"
+  },
   "keywords": [
     "rest",
     "security",
@@ -20,6 +28,6 @@
     "request": "~2.33.0"
   },
   "dependencies": {
-    "restify-errors": "~2.6.1"
+    "restify-errors": "^2.6.1"
   }
 }
