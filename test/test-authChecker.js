@@ -74,7 +74,7 @@ vows.describe('BWS auth checker').addBatch({
                     method: 'GET',
                     url : '/avoirs/0000029',
                     headers: {
-                        date: 'Tue, 4 Feb 2014 14:36:42 +0000'
+                        "x-bm-date": 'Tue, 4 Feb 2014 14:36:42 +0000'
                     },
                     authorization : {
                         scheme: 'BWS',
@@ -96,13 +96,13 @@ vows.describe('BWS auth checker').addBatch({
                     method: 'GET',
                     url : '/avoirs/0000029',
                     headers: {
-                        date: 'Tue, 7 Feb 2014 14:36:42 +0000'
+                        "x-bm-date": 'Tue, 7 Feb 2014 14:36:42 +0000'
                     },
                     authorization : {
                         scheme: 'BWS',
                         credentials: {
                             licence: '20130404004463',
-                            signature: '+9ZeL8502UMDftslyJVy85M09O98ByCcEIfERVzpFcU='
+                            signature: '8H9kSlCD31TQb1LRALmXGiKQVWrSNmVA1GSHJPW45Sc='
                         }
                     }
                 }, {}, this.callback);
@@ -111,4 +111,4 @@ vows.describe('BWS auth checker').addBatch({
             }
         }
     }
-}).export(module);
+})['export'](module);

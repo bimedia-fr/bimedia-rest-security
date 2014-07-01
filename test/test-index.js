@@ -102,9 +102,12 @@ vows.describe('security plugin').addBatch({
     },
     'if auth scheme is *BWS* with a valid license and signature' : {
         topic : function () {
-            apiTest.get('/', {'Authorization': 'BWS 20130404004463:fv6lNDNwSaQXiBNDNhTlJ6qZA9rDMbh26Xk/Nu9Fx8k='}, this.callback);
+            apiTest.get('/', {
+                'Authorization': 'BWS 20130404004463:zAi7p4aICGDk/S/zT8snQqsqbxke/ktLlfwis0pCN54=',
+                "x-bm-date": 'Tue, 4 Feb 2014 14:36:42 +0000'
+            }, this.callback);
         },
         'sends 200' : apiTest.assertStatus(200)
     }
-}).export(module);
+})['export'](module);
 
