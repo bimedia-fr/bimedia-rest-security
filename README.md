@@ -36,6 +36,6 @@ module.exports = [{
     timestampValidity: 15*60, /* Timestamp validity, in seconds, default 60 */
     scheme: 'BWS', /* Authorization scheme, default BWS */
     name: 'auth', /* Logger name, default auth */
-    httpHeaderPrefix: 'x-bm' /* Logger name, default x-bm */
+    httpHeaderPrefix: 'x-bm' /* http prefix name, default x-bm */
 }];
 ```
