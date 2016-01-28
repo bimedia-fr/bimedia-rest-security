@@ -33,8 +33,9 @@ Configure rest-security with Architect `config.js` :
 module.exports = [{
     packagePath: 'bimedia-rest-security',
     keypath: 'http://localhost:8086/api/key/%s', /* Private key server */
-    timestampValidity: 15*60, /* Timestamp validity, in seconds */
+    timestampValidity: 15*60, /* Timestamp validity, in seconds, default 60 */
     scheme: 'BWS', /* Authorization scheme, default BWS */
     name: 'auth', /* Logger name, default auth */
+    httpHeaderPrefix: 'x-bm' /* Logger name, default x-bm */
 }];
 ```
