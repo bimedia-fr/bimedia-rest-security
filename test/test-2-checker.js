@@ -96,40 +96,55 @@ module.exports = {
 		};		
 		this.basicRequest.sign(this.privatekey);
 		
-		// Start a minimal key server
-		this._keyServer = http.createServer(function(req, res) {
-			if(req.url == '/api/key/UNKNOWN_PRINCIPAL') {
-				res.writeHead(404);
-				res.end();
-			} else if(req.url == '/api/key/500_PRINCIPAL') {
-				res.writeHead(500);
-				res.end();
-			} else {
-				res.writeHead(200, {'Content-Type': 'text/plain' });
-				res.write('-----BEGIN RSA PUBLIC KEY-----\n'+
-						'MIIBCgKCAQEApXKJfC0AYWk2Xwe6KbzOoijbHUNn//IUHsU8bxsoZ9L6szrzpZ0P\n'+
-						'9GPc5v7R8za9afCxSRKWbFrXCgLko5M2t8ILggBnm7gdmB+Qt8EiHbIlRJsYyX7K\n'+
-						'dh27IZCTD4l5KglpZ5JOhWxOldB4WD2qUTrRgHYRgbJkfhdODPJ7jjYWjn8GN4Kp\n'+
-						'Z1cz/V1HjZT5HuqQ0BLSotslOAvWhqE2nWSfhg9Bf41sVTY0gw89QlUvJjOPteby\n'+
-						'uMk9SniMXLNSKb4T409nDBL2wYPFi8JGR4rtXT/Vcvx9Cvs9RB/RLTWpf7qHF0tv\n'+
-						'ZDUn3zPslAcAQnRmJCtgK3on2+ZUkkrErQIDAQAB\n'+
-						'-----END RSA PUBLIC KEY-----\n', function() {
-					res.end();
-				});
-			}
-		});
-		var self = this;
-		this._keyServer.listen(function() { 
-			self._port = self._keyServer.address().port;
-			self._address = self._keyServer.address().address;
-			self._family = self._keyServer.address().family;
+		this.mock = {
+				keyServer: {
+					conf: {}
+				}
+			};
 			
-			var ip = this._address;
-			if(self._family == 'IPv6') {
-				ip = '['+self._address+']';
+		var keyServer = this.mock.keyServer;
+		
+		function startKeyServer(cb) {
+			// Start a minimal key server
+			keyServer.server = http.createServer(function(req, res) {
+				if(req.url == '/api/key/UNKNOWN_PRINCIPAL') {
+					res.writeHead(404);
+					res.end();
+				} else if(req.url == '/api/key/500_PRINCIPAL') {
+					res.writeHead(500);
+					res.end();
+				} else {
+					res.writeHead(200, {'Content-Type': 'text/plain' });
+					res.write('-----BEGIN RSA PUBLIC KEY-----\n'+
+							'MIIBCgKCAQEApXKJfC0AYWk2Xwe6KbzOoijbHUNn//IUHsU8bxsoZ9L6szrzpZ0P\n'+
+							'9GPc5v7R8za9afCxSRKWbFrXCgLko5M2t8ILggBnm7gdmB+Qt8EiHbIlRJsYyX7K\n'+
+							'dh27IZCTD4l5KglpZ5JOhWxOldB4WD2qUTrRgHYRgbJkfhdODPJ7jjYWjn8GN4Kp\n'+
+							'Z1cz/V1HjZT5HuqQ0BLSotslOAvWhqE2nWSfhg9Bf41sVTY0gw89QlUvJjOPteby\n'+
+							'uMk9SniMXLNSKb4T409nDBL2wYPFi8JGR4rtXT/Vcvx9Cvs9RB/RLTWpf7qHF0tv\n'+
+							'ZDUn3zPslAcAQnRmJCtgK3on2+ZUkkrErQIDAQAB\n'+
+							'-----END RSA PUBLIC KEY-----\n', function() {
+						res.end();
+					});
+				}
+			});
+			self.mock.keyServer.server.listen(function() { 
+				keyServer.conf.port = keyServer.server.address().port;
+				keyServer.conf.address = keyServer.server.address().address;
+				keyServer.conf.family = keyServer.server.address().family;
+				
+				cb();
+			});
+		}
+		
+		var self = this;
+		
+		startKeyServer(function() {
+			var ip = self.mock.keyServer.conf.address;
+			if(self.mock.keyServer.conf.family== 'IPv6') {
+				ip = '['+self.mock.keyServer.conf.address+']';
 			}
 			self.checker = checker(new self.log(), errors, {
-				keypath: 'http://'+ip+':'+self._port+'/api/key/%s'
+				keypath: 'http://'+ip+':'+self.mock.keyServer.conf.port+'/api/key/%s'
 			});
 			callback();
 		});
@@ -141,7 +156,7 @@ module.exports = {
 		
 		var req = this.basicRequest;
 		req.authorization.credentials.principal = 'UNKNOWN_PRINCIPAL';
-
+		
 		this.checker(req, res, function(error) {
 			test.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
 			test.equal(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
@@ -443,7 +458,7 @@ module.exports = {
 		}
 	},	
 	tearDown: function(callback) {
-		this._keyServer.close(function() {
+		this.mock.keyServer.server.close(function() {
 			callback();
 		});
 	}
