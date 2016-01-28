@@ -2,7 +2,6 @@
 "use strict";
 
 var nodeunit = require('nodeunit');
-var signer = require('./signer');
 var http = require('http');
 var request = require('request');
 var errors = require('restify-errors');
