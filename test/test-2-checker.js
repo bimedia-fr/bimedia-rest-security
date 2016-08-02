@@ -14,34 +14,7 @@ var checker = require('../lib/checker');
 module.exports = {
 
     setUp: function (callback) {
-        this.privatekey = '-----BEGIN RSA PRIVATE KEY-----\n' +
-            'MIIEpAIBAAKCAQEApXKJfC0AYWk2Xwe6KbzOoijbHUNn//IUHsU8bxsoZ9L6szrz\n' +
-            'pZ0P9GPc5v7R8za9afCxSRKWbFrXCgLko5M2t8ILggBnm7gdmB+Qt8EiHbIlRJsY\n' +
-            'yX7Kdh27IZCTD4l5KglpZ5JOhWxOldB4WD2qUTrRgHYRgbJkfhdODPJ7jjYWjn8G\n' +
-            'N4KpZ1cz/V1HjZT5HuqQ0BLSotslOAvWhqE2nWSfhg9Bf41sVTY0gw89QlUvJjOP\n' +
-            'tebyuMk9SniMXLNSKb4T409nDBL2wYPFi8JGR4rtXT/Vcvx9Cvs9RB/RLTWpf7qH\n' +
-            'F0tvZDUn3zPslAcAQnRmJCtgK3on2+ZUkkrErQIDAQABAoIBAQCjwD6FkgDbaQgw\n' +
-            'fHRsVPxrkWZ1iz7HG3GAlxTenxGZ2T7a4FFArLia2bBNTQ6924MT9O9zdJs/eZV2\n' +
-            'yjBEGjPBIqTDMeVaQZvA8hUJWnWK0MSEJ8IbxItc5sZNTUvQx+8NhS03Hp7q/ay2\n' +
-            'KRTDuZz2MvIiZDmllcxS5HwS4nkZ4aVXI/MCQrqSE2X+6zIbXyH9LwbtbSL0eTd2\n' +
-            '0aAtSjGFnZRThvP8efJDf0lPose33dzXnLCSOdOgjBqSGYKDFYmQrvQBHOCR+926\n' +
-            'GphYttmYtVCzlZHt0SR0A4AJbWDPtPWAv3rqyFHy4iYeQ3gEdq/uqGTHctb1KJn3\n' +
-            'IJA8ZbzdAoGBANPrEkBqinGfDfWL9qwp02TnPUkTXvdUNZwkon532EQs81CGzIK4\n' +
-            '8DgmhM/Hp/2xaU4vg0s8BNzUJFP7YRMod0NqHHgmtJ15Nx4W4CuYvcj5yp/fydfO\n' +
-            'vAM8lZgKHe5JfKyoTXxTroWjBFw2Z+NMESAqgiMeB0M9aleVX/eOrmaTAoGBAMfc\n' +
-            '1PO3GyyTGuHaZZ7HEaW5PuA+/UlklNtsNwQl70EIox+f/L7JNhQkRISM4TbljR7i\n' +
-            'g9vk2Q1c6Wm9hNU72/5OUBJVZGBF/vHz8m0bK4lWvPJIf+cbzcLbt5sARyg3WWkd\n' +
-            'g8SqnilLiE4HF5sTKstnXx3oAoR3cVfI+sTCk++/AoGANpN9mdVWXjimMaygFGqZ\n' +
-            'JI1g/Sbd+DhZriLJLmTS74vcBcsRdEEIrI1O+uviWbWM9zPJTmDgp7aCvJYqw/JR\n' +
-            '9KypNFBTh5KmHTuq889cYRvjkRTjOI7nYLYDmKpSVwHZ9+VIP1KVyZjYEJ96VdFL\n' +
-            'P8tyxHSBTlHMx02S74Bxbb0CgYBqXIZjsPVgMmUi/rQH3I7yr/PbKQpoTYO+hgd9\n' +
-            'SKbb6DnPcbfy3GfQLkDcfZC5Q05nukpL8qzkJKb/I+GWDQYVfx2ztAf4CCgWISnJ\n' +
-            'kKUJsMRa9+RBXJWS9pTugyZbK6GEhDWEqvwCo/TE+ZdBauDiYH/JDZiRYHNMMWPq\n' +
-            '5FYQRwKBgQCU6ONg4Mo3//N92t8tL665s8t3CZT4cw5zfEUFOpCGG01+rtObu30j\n' +
-            'KfNrrBuo9J5p3zcHvLc4p6hJwZzppPhFNvVdxjLBJ6P00WV7mGsQH/Q7MqIA2FO8\n' +
-            '+Lm3roJEavQDW/zWRk/hYdRtSqQXqH8FemtPytreW50hc6PNiZ2DUQ==\n' +
-            '-----END RSA PRIVATE KEY-----\n';
-
+        this.privatekey = fs.readFileSync(__dirname + '/priv.key');
         this.log = function () {};
         this.log.prototype.info = this.log.prototype.warn = function () {};
 
