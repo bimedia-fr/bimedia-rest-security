@@ -22,11 +22,11 @@
   "author": "jerome creignou",
   "license": "BSD-2-Clause",
   "dependencies": {
-    "request": "^2.67.0"
+    "request": "^2.67.0",
+    "restify-errors": "^4.2.3"
   },
   "devDependencies": {
     "nodeunit": "^0.9.1",
-    "restify": "^4.0.3",
-    "restify-errors": "^3.1.0"
+    "restify": "^4.0.3"
   }
 }
