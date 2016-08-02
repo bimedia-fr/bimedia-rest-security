@@ -7,6 +7,7 @@ var errors = require('restify-errors');
 var Readable = require('stream').Readable;
 var crypto = require('crypto');
 var url = require('url');
+var fs = require('fs');
 
 var checker = require('../lib/checker');
 
@@ -118,17 +119,7 @@ module.exports = {
                     res.writeHead(200, {
                         'Content-Type': 'text/plain'
                     });
-                    res.write('-----BEGIN RSA PUBLIC KEY-----\n' +
-                        'MIIBCgKCAQEApXKJfC0AYWk2Xwe6KbzOoijbHUNn//IUHsU8bxsoZ9L6szrzpZ0P\n' +
-                        '9GPc5v7R8za9afCxSRKWbFrXCgLko5M2t8ILggBnm7gdmB+Qt8EiHbIlRJsYyX7K\n' +
-                        'dh27IZCTD4l5KglpZ5JOhWxOldB4WD2qUTrRgHYRgbJkfhdODPJ7jjYWjn8GN4Kp\n' +
-                        'Z1cz/V1HjZT5HuqQ0BLSotslOAvWhqE2nWSfhg9Bf41sVTY0gw89QlUvJjOPteby\n' +
-                        'uMk9SniMXLNSKb4T409nDBL2wYPFi8JGR4rtXT/Vcvx9Cvs9RB/RLTWpf7qHF0tv\n' +
-                        'ZDUn3zPslAcAQnRmJCtgK3on2+ZUkkrErQIDAQAB\n' +
-                        '-----END RSA PUBLIC KEY-----\n',
-                        function () {
-                            res.end();
-                        });
+                    fs.createReadStream(__dirname + '/pub.key').pipe(res);
                 }
             });
             self.mock.keyServer.server.listen(function () {
@@ -145,9 +136,9 @@ module.exports = {
             if (self.mock.keyServer.conf.family == 'IPv6') {
                 ip = '[' + self.mock.keyServer.conf.address + ']';
             }
-            self.checker = checker(new self.log(), {
+            self.checker = checker({
                 keypath: 'http://' + ip + ':' + self.mock.keyServer.conf.port + '/api/key/%s'
-            });
+            }, new self.log());
             callback();
         });
     },

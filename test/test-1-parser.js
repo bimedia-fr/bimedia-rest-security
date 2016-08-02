@@ -12,7 +12,7 @@ module.exports = {
             this.log = function () {};
             this.log.prototype.info = this.log.prototype.warn = function () {};
 
-            this.parser = parser(new this.log(), {});
+            this.parser = parser({}, new this.log());
 
             this.basicRequest = new Readable();
             this.basicRequest.push(null);
@@ -184,10 +184,10 @@ module.exports = {
             this.log = function () {};
             this.log.prototype.info = this.log.prototype.warn = function () {};
 
-            this.parser = parser(new this.log(), {
+            this.parser = parser({
                 httpHeaderPrefix: 'x-other',
                 scheme: 'OTHERSCHEME'
-            });
+            }, new this.log());
 
             this.basicRequest = new Readable();
             this.basicRequest.push(null);
