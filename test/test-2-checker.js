@@ -111,7 +111,7 @@ module.exports = {
             }
             self.checker = checker({
                 keypath: 'http://' + ip + ':' + self.mock.keyServer.conf.port + '/api/key/%s'
-            }, new self.log());
+            }, new self.log()).middleware;
             callback();
         });
     },
