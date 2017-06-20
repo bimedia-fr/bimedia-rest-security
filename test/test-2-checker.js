@@ -21,13 +21,15 @@ module.exports = {
         this.basicRequest = new Readable();
         this.basicRequest.push(null);
         this.basicRequest.headers = {
-            'x-bm-date': new Date().toUTCString()
+            'x-bm-date': new Date().toUTCString(),
+            'x-bm-terminal': 'mydevice'
         };
         this.basicRequest.authorization = {
             scheme: 'BWS',
             credentials: {
                 principal: 'KNOWN_PRINCIPAL',
-                signature: '45678945612346gyzergczergczergf'
+                signature: '45678945612346gyzergczergczergf',
+                terminal: 'mydevice'
             }
         };
         this.basicRequest.method = 'GET';

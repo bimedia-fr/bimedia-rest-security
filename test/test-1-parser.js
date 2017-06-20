@@ -18,6 +18,7 @@ module.exports = {
             this.basicRequest.push(null);
             this.basicRequest.headers = {
                 'x-bm-date': new Date().toUTCString(),
+                'x-bm-terminal': 'tablettetutu',
                 'authorization': 'BWS 123:45678945612346gyzergczergczergf'
             };
 
@@ -130,13 +131,15 @@ module.exports = {
             });
         },
         'accept valid request': function (test) {
-            test.expect(1);
+            test.expect(3);
 
             var res = {};
             var req = this.basicRequest;
 
             this.parser(req, res, function (error) {
                 test.ok(error === undefined, 'Must not raise an error');
+                test.equal('tablettetutu', req.authorization.credentials.terminal);
+                test.equal('123', req.authorization.credentials.principal);
                 test.done();
             });
         },
