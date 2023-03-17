@@ -1,363 +1,310 @@
-/*jslint node : true, nomen: true, plusplus: true, vars: true, eqeq: true,*/
-"use strict";
-
+const assert = require('assert');
 var errors = require('restify-errors');
-var parser = require('../lib/parser');
+var Parser = require('../lib/parser');
 var Readable = require('stream').Readable;
 
-module.exports = {
+describe('Parser', () => {
+    beforeEach((callback) => {
+        log = function () {};
+        log.prototype.info = log.prototype.warn = function () {};
 
-    'with default config': {
-        setUp: function (callback) {
-            this.log = function () {};
-            this.log.prototype.info = this.log.prototype.warn = function () {};
+        parser = Parser({}, new log()).middleware;
 
-            this.parser = parser({}, new this.log()).middleware;
-
-            this.basicRequest = new Readable();
-            this.basicRequest.push(null);
-            this.basicRequest.headers = {
-                'x-bm-date': new Date().toUTCString(),
-                'x-bm-terminal': 'tablettetutu',
-                'authorization': 'BWS 123:45678945612346gyzergczergczergf'
-            };
-
-            callback();
-        },
-        'reject request on missing date header': function (test) {
-            test.expect(2);
-
+        basicRequest = new Readable();
+        basicRequest.push(null);
+        basicRequest.headers = {
+            'x-bm-date': new Date().toUTCString(),
+            'x-bm-terminal': 'tablettetutu',
+            'authorization': 'BWS 123:45678945612346gyzergczergczergf'
+        };
+        callback();
+    });
+    describe('default config', () =>{
+        it('should reject request on missing date header', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             delete req.headers['x-bm-date'];
 
-            this.parser(req, res, function (error) {
-                test.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
-                test.equal(error.message, 'missing date header', 'Must raise an error with message missing date header');
-                test.done();
+            parser(req, res, function (error) {
+                assert.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
+                assert.strictEqual(error.message, 'missing date header', 'Must raise an error with message missing date header');
+                done();
             });
-
-        },
-        'reject request on outdated date header': function (test) {
-            test.expect(2);
-
+        }),
+        it('should reject request on outdated date header', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             req.headers['x-bm-date'] = new Date('2015-01-01 00:00:00').toUTCString();
 
-            this.parser(req, res, function (error) {
-                test.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
-                test.equal(error.message, 'outdated request', 'Must raise an error with message outdated request');
-                test.done();
+            parser(req, res, function (error) {
+                assert.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
+                assert.strictEqual(error.message, 'outdated request', 'Must raise an error with message outdated request');
+                done();
             });
-
-        },
-        'reject request on invalid x-bm-date header': function (test) {
-            test.expect(2);
-
+        }),
+        it('should reject request on invalid x-bm-date header', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             req.headers['x-bm-date'] = 'Not a valid date format !';
 
-            this.parser(req, res, function (error) {
-                test.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
-                test.equal(error.message, 'invalid date header', 'Must raise an error with invalid date header');
-                test.done();
+            parser(req, res, function (error) {
+                assert.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
+                assert.equal(error.message, 'invalid date header', 'Must raise an error with invalid date header');
+                done();
             });
-        },
-        'reject request on invalid date header': function (test) {
-            test.expect(2);
-
+        }),
+        it('reject request on invalid date header', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             delete req.headers['x-bm-date'];
             req.headers.date = 'Not a valid date format !';
 
-            this.parser(req, res, function (error) {
-                test.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
-                test.equal(error.message, 'invalid date header', 'Must raise an error with invalid date header');
-                test.done();
+            parser(req, res, function (error) {
+                assert.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
+                assert.strictEqual(error.message, 'invalid date header', 'Must raise an error with invalid date header');
+                done();
             });
-        },
-        'reject request on missing authorization header': function (test) {
-            test.expect(2);
-
+        }),
+        it('reject request on missing authorization header', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             delete req.headers.authorization;
 
-            this.parser(req, res, function (error) {
-                test.ok(error instanceof errors.InvalidCredentialsError, 'Must raise an InvalidCredentialsError');
-                test.equal(error.message, 'missing credentials', 'Must raise an error with message missing credentials');
-                test.done();
+            parser(req, res, function (error) {
+                assert.ok(error instanceof errors.InvalidCredentialsError, 'Must raise an InvalidCredentialsError');
+                assert.strictEqual(error.message, 'missing credentials', 'Must raise an error with message missing credentials');
+                done();
             });
-        },
-        'reject request on invalid authorization scheme': function (test) {
-            test.expect(2);
-
+        }),
+        it('reject request on invalid authorization scheme', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             req.headers.authorization = 'AWS 123:45678945612346gyzergczergczergf';
 
-            this.parser(req, res, function (error) {
-                test.ok(error instanceof errors.InvalidCredentialsError, 'Must raise an InvalidCredentialsError');
-                test.equal(error.message, 'invalid authorization scheme', 'Must raise an error with message invalid authorization scheme');
-                test.done();
+            parser(req, res, function (error) {
+                assert.ok(error instanceof errors.InvalidCredentialsError, 'Must raise an InvalidCredentialsError');
+                assert.equal(error.message, 'invalid authorization scheme', 'Must raise an error with message invalid authorization scheme');
+                done();
             });
-        },
-        'reject request on invalid authorization format': function (test) {
-            test.expect(2);
-
+        }),
+        it('reject request on invalid authorization format', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             req.headers.authorization = '45678945612346gyzergczergczergf';
 
-            this.parser(req, res, function (error) {
-                test.ok(error instanceof errors.InvalidCredentialsError, 'Must raise an InvalidCredentialsError');
-                test.equal(error.message, 'missing credentials', 'Must raise an error with message missing credentials');
-                test.done();
+            parser(req, res, function (error) {
+                assert.ok(error instanceof errors.InvalidCredentialsError, 'Must raise an InvalidCredentialsError');
+                assert.strict(error.message, 'missing credentials', 'Must raise an error with message missing credentials');
+                done();
             });
-        },
-        'x-bm-date is used in priority to date': function (test) {
-            test.expect(1);
-
+        }),
+        it('x-bm-date is used in priority to date', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             req.headers.date = 'invalid date';
 
-            this.parser(req, res, function (error) {
-                test.ok(error === undefined, 'Must not raise an error');
-                test.done();
+            parser(req, res, function (error) {
+                assert.ok(error === undefined, 'Must not raise an error');
+                done();
             });
-        },
-        'accept valid request': function (test) {
-            test.expect(3);
-
+        }),
+        it('accept valid request', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
 
-            this.parser(req, res, function (error) {
-                test.ok(error === undefined, 'Must not raise an error');
-                test.equal('tablettetutu', req.authorization.credentials.terminal);
-                test.equal('123', req.authorization.credentials.principal);
-                test.done();
+            parser(req, res, function (error) {
+                assert.ok(error === undefined, 'Must not raise an error');
+                assert.equal('tablettetutu', req.authorization.credentials.terminal);
+                assert.equal('123', req.authorization.credentials.principal);
+                done();
             });
-        },
-        'accept request with both valid x-bm-date and date headers': function (test) {
-            test.expect(1);
-
+        }),
+        it('accept request with both valid x-bm-date and date headers', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             req.headers.date = req.headers['x-bm-date'];
 
-            this.parser(req, res, function (error) {
-                test.ok(error === undefined, 'Must not raise an error');
-                test.done();
+            parser(req, res, function (error) {
+                assert.ok(error === undefined, 'Must not raise an error');
+                done();
             });
-        },
-        'accept request with valid x-bm-date header and invalid date header': function (test) {
-            test.expect(1);
-
+        });
+        it('accept request with valid x-bm-date header and invalid date header', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             req.headers.date = 'Invalid date format';
 
-            this.parser(req, res, function (error) {
-                test.ok(error === undefined, 'Must not raise an error');
-                test.done();
+            parser(req, res, function (error) {
+                assert.ok(error === undefined, 'Must not raise an error');
+                done();
             });
-        },
-        'reject request with valid date header and invalid x-bm-date header': function (test) {
-            test.expect(2);
-
+        });
+        it('reject request with valid date header and invalid x-bm-date header', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             req.headers.date = req.headers['x-bm-date'];
             req.headers['x-bm-date'] = 'Invalid date format';
 
-            this.parser(req, res, function (error) {
-                test.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
-                test.equal(error.message, 'invalid date header', 'Must raise an error with invalid date header');
-                test.done();
+            parser(req, res, function (error) {
+                assert.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
+                assert.strictEqual(error.message, 'invalid date header', 'Must raise an error with invalid date header');
+                done();
             });
-        }
-    },
-    'with other http header prefix and scheme': {
-        setUp: function (callback) {
-            this.log = function () {};
-            this.log.prototype.info = this.log.prototype.warn = function () {};
+        });
+    });
+});
 
-            this.parser = parser({
-                httpHeaderPrefix: 'x-other',
-                scheme: 'OTHERSCHEME'
-            }, new this.log()).middleware;
+describe('Parser', () => {
+    let log = function () {}; 
+    let parser, basicRequest;
+    beforeEach(function (callback) {
+        log.prototype.info = log.prototype.warn = function () {};
+        // log.prototype.info = log.prototype.warn = console.log;
 
-            this.basicRequest = new Readable();
-            this.basicRequest.push(null);
-            this.basicRequest.headers = {
-                'x-other-date': new Date().toUTCString(),
-                'authorization': 'OTHERSCHEME 123:45678945612346gyzergczergczergf'
-            };
+        parser = Parser({
+            httpHeaderPrefix: 'x-other',
+            scheme: 'OTHERSCHEME'
+        }, new log()).middleware;
 
-            callback();
-        },
-        'reject request on missing date header': function (test) {
-            test.expect(2);
-
+        basicRequest = new Readable();
+        basicRequest.push(null);
+        basicRequest.headers = {
+            'x-other-date': new Date().toUTCString(),
+            'authorization': 'OTHERSCHEME 123:45678945612346gyzergczergczergf'
+        };
+        callback();
+    });
+    describe('with other http header prefix and scheme', ()=> {
+        it('should reject request on missing date header', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             delete req.headers['x-other-date'];
-
-            this.parser(req, res, function (error) {
-                test.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
-                test.equal(error.message, 'missing date header', 'Must raise an error with message missing date header');
-                test.done();
+    
+            parser(req, res, function (error) {
+                assert.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
+                assert.strictEqual(error.message, 'missing date header', 'Must raise an error with message missing date header');
+                done();
             });
-
-        },
-        'reject request on outdated date header': function (test) {
-            test.expect(2);
-
+        });
+        it('should reject request on outdated date header', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             req.headers['x-other-date'] = new Date('2015-01-01 00:00:00').toUTCString();
-
-            this.parser(req, res, function (error) {
-                test.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
-                test.equal(error.message, 'outdated request', 'Must raise an error with message outdated request');
-                test.done();
+    
+            parser(req, res, function (error) {
+                assert.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
+                assert.strictEqual(error.message, 'outdated request', 'Must raise an error with message outdated request');
+                done();
             });
-
-        },
-        'reject request on invalid x-other-date header': function (test) {
-            test.expect(2);
-
+        });
+        it('should reject request on invalid x-other-date header', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             req.headers['x-other-date'] = 'Not a valid date format !';
-
-            this.parser(req, res, function (error) {
-                test.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
-                test.equal(error.message, 'invalid date header', 'Must raise an error with invalid date header');
-                test.done();
+    
+            parser(req, res, function (error) {
+                assert.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
+                assert.strictEqual(error.message, 'invalid date header', 'Must raise an error with invalid date header');
+                done();
             });
-        },
-        'reject request on invalid date header': function (test) {
-            test.expect(2);
-
+        });
+        it('should reject request on invalid date header', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             delete req.headers['x-other-date'];
             req.headers.date = 'Not a valid date format !';
-
-            this.parser(req, res, function (error) {
-                test.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
-                test.equal(error.message, 'invalid date header', 'Must raise an error with invalid date header');
-                test.done();
+    
+            parser(req, res, function (error) {
+                assert.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
+                assert.equal(error.message, 'invalid date header', 'Must raise an error with invalid date header');
+                done();
             });
-        },
-        'reject request on missing authorization header': function (test) {
-            test.expect(2);
-
+        });
+        it('should reject request on missing authorization header', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             delete req.headers.authorization;
-
-            this.parser(req, res, function (error) {
-                test.ok(error instanceof errors.InvalidCredentialsError, 'Must raise an InvalidCredentialsError');
-                test.equal(error.message, 'missing credentials', 'Must raise an error with message missing credentials');
-                test.done();
+    
+            parser(req, res, function (error) {
+                assert.ok(error instanceof errors.InvalidCredentialsError, 'Must raise an InvalidCredentialsError');
+                assert.strictEqual(error.message, 'missing credentials', 'Must raise an error with message missing credentials');
+                done();
             });
-        },
-        'reject request on invalid authorization scheme': function (test) {
-            test.expect(2);
-
+        });
+        it('should reject request on invalid authorization scheme', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
+            req.headers.date = new Date().toUTCString();
             req.headers.authorization = 'AWS 123:45678945612346gyzergczergczergf';
-
-            this.parser(req, res, function (error) {
-                test.ok(error instanceof errors.InvalidCredentialsError, 'Must raise an InvalidCredentialsError');
-                test.equal(error.message, 'invalid authorization scheme', 'Must raise an error with message invalid authorization scheme');
-                test.done();
+            
+            parser(req, res, function (error) {
+                assert.ok(error instanceof errors.InvalidCredentialsError, 'Must raise an InvalidCredentialsError');
+                assert.strictEqual(error.message, 'invalid authorization scheme', 'Must raise an error with message invalid authorization scheme');
+                done();
             });
-        },
-        'reject request on invalid authorization format': function (test) {
-            test.expect(2);
-
+        });
+        it('should reject request on invalid authorization format', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             req.headers.authorization = '45678945612346gyzergczergczergf';
-
-            this.parser(req, res, function (error) {
-                test.ok(error instanceof errors.InvalidCredentialsError, 'Must raise an InvalidCredentialsError');
-                test.equal(error.message, 'missing credentials', 'Must raise an error with message missing credentials');
-                test.done();
+    
+            parser(req, res, function (error) {
+                assert.ok(error instanceof errors.InvalidCredentialsError, 'Must raise an InvalidCredentialsError');
+                assert.strictEqual(error.message, 'missing credentials', 'Must raise an error with message missing credentials');
+                done();
             });
-        },
-        'x-bm-date is used in priority to date': function (test) {
-            test.expect(1);
-
+        });
+        it('should use x-bm-date in priority to date', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             req.headers.date = 'invalid date';
-
-            this.parser(req, res, function (error) {
-                test.ok(error === undefined, 'Must not raise an error');
-                test.done();
+    
+            parser(req, res, function (error) {
+                assert.ok(error === undefined, 'Must not raise an error');
+                done();
             });
-        },
-        'accept valid request': function (test) {
-            test.expect(1);
-
+        });
+        it('should accept valid request', (done) => {
             var res = {};
-            var req = this.basicRequest;
-
-            this.parser(req, res, function (error) {
-                test.ok(error === undefined, 'Must not raise an error');
-                test.done();
+            var req = basicRequest;
+    
+            parser(req, res, function (error) {
+                assert.ok(error === undefined, 'Must not raise an error');
+                done();
             });
-        },
-        'accept request with both valid x-other-date and date headers': function (test) {
-            test.expect(1);
-
+        });
+        it('should accept request with both valid x-other-date and date headers', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             req.headers.date = req.headers['x-other-date'];
-
-            this.parser(req, res, function (error) {
-                test.ok(error === undefined, 'Must not raise an error');
-                test.done();
+    
+            parser(req, res, function (error) {
+                assert.ok(error === undefined, 'Must not raise an error');
+                done();
             });
-        },
-        'accept request with valid x-other-date header and invalid date header': function (test) {
-            test.expect(1);
-
+        });
+        it('should accept request with valid x-other-date header and invalid date header', (done) => {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             req.headers.date = 'Invalid date format';
-
-            this.parser(req, res, function (error) {
-                test.ok(error === undefined, 'Must not raise an error');
-                test.done();
+    
+            parser(req, res, function (error) {
+                
+                assert.ok(error === undefined, 'Must not raise an error ' + error);
+                done();
             });
-        },
-        'reject request with valid date header and invalid x-other-date header': function (test) {
-            test.expect(2);
-
+        });
+        it('should reject request with valid date header and invalid x-other-date header', function (done) {
             var res = {};
-            var req = this.basicRequest;
+            var req = basicRequest;
             req.headers.date = req.headers['x-other-date'];
             req.headers['x-other-date'] = 'Invalid date format';
-
-            this.parser(req, res, function (error) {
-                test.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
-                test.equal(error.message, 'invalid date header', 'Must raise an error with invalid date header');
-                test.done();
+    
+            parser(req, res, function (error) {
+                assert.ok(error instanceof errors.BadRequestError, 'Must raise a BadRequestError');
+                assert.strictEqual(error.message, 'invalid date header', 'Must raise an error with invalid date header');
+                done();
             });
-        }
-    },
-    tearDown: function (callback) {
-        callback();
-    }
-};
+        });
+    });
+});

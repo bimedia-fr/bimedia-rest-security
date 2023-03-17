@@ -4,7 +4,7 @@
   "description": "implementation de la sécurité pour les services rest Bimedia",
   "main": "lib/index.js",
   "scripts": {
-    "test": "nodeunit test/test-*.js"
+    "test": "find test -type f -iname '*.test.js' | xargs nyc --reporter=lcov --reporter=text mocha"
   },
   "repository": {
     "type": "git",
@@ -22,10 +22,10 @@
   "author": "jerome creignou",
   "license": "BSD-2-Clause",
   "dependencies": {
-    "restify-errors": "^4.2.3"
+    "restify-errors": "^8.0.2"
   },
   "devDependencies": {
-    "nodeunit": "^0.9.1",
-    "restify": "^4.0.3"
+    "mocha": "^10.2.0",
+    "nyc": "^15.1.0"
   }
 }

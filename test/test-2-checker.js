@@ -1,30 +1,30 @@
-/*jslint node : true, nomen: true, plusplus: true, vars: true, eqeq: true,*/
-"use strict";
-
-var http = require('http');
-var request = require('request');
+const assert = require('assert');
 var errors = require('restify-errors');
 var Readable = require('stream').Readable;
 var crypto = require('crypto');
 var url = require('url');
 var fs = require('fs');
+var path = require('path');
 
-var checker = require('../lib/checker');
+var Checker = require('../lib/checker');
 
-module.exports = {
+describe('Checker', ()=> {
+    let privatekey = fs.readFileSync(__dirname + '/priv.key');
+    let log = function () {};
+    let basicRequest = new Readable();
+    let checker;
+    beforeEach((callback) => {
+        log.prototype.info = log.prototype.warn = function () {};
+        log.prototype.info = log.prototype.warn = console.log;
 
-    setUp: function (callback) {
-        this.privatekey = fs.readFileSync(__dirname + '/priv.key');
-        this.log = function () {};
-        this.log.prototype.info = this.log.prototype.warn = function () {};
-
-        this.basicRequest = new Readable();
-        this.basicRequest.push(null);
-        this.basicRequest.headers = {
+        basicRequest = new Readable();
+        basicRequest.push(null);
+        basicRequest.method = 'GET';
+        basicRequest.headers = {
             'x-bm-date': new Date().toUTCString(),
             'x-bm-terminal': 'mydevice'
         };
-        this.basicRequest.authorization = {
+        basicRequest.authorization = {
             scheme: 'BWS',
             credentials: {
                 principal: 'KNOWN_PRINCIPAL',
@@ -32,406 +32,363 @@ module.exports = {
                 terminal: 'mydevice'
             }
         };
-        this.basicRequest.method = 'GET';
-        this.basicRequest.url = 'http://fakehost/protected';
-        this.basicRequest.sign = function (privatekey) {
-            var urlParts = url.parse(this.url, true);
+        basicRequest.method = 'GET';
+        basicRequest.url = 'http://fakehost/protected';
+        basicRequest.sign = function (privatekey) {
+            var urlParts = url.parse(basicRequest.url, true);
             var params = urlParts.query || {};
-            var queryString = Object.keys(params).sort().map(function (item, index, array) {
+            var queryString = Object.keys(params).sort().map(function (item) {
                 return item + (params[item] ? '=' + params[item] : '');
             }).join('&');
             var canonicalizedResource = urlParts.pathname + (queryString ? '?' + queryString : '');
-            var self = this;
-            var canonicalizedHeaders = Object.keys(this.headers).filter(function (item) {
+            var canonicalizedHeaders = Object.keys(basicRequest.headers).filter(function (item) {
                 return item.startsWith('x-bm-');
             }).sort().map(function (item, index, array) {
-                return item + ':' + self.headers[item];
+                return item + ':' + basicRequest.headers[item];
             }).join("\n");
             var hash = crypto.createSign('RSA-SHA256');
             var toSign = [
-                this.method,
-                (this.headers['content-md5'] || ''),
-                (this.headers['content-type'] || ''),
-                (this.headers['x-bm-date'] || this.headers.date),
+                basicRequest.method,
+                (basicRequest.headers['content-md5'] || ''),
+                (basicRequest.headers['content-type'] || ''),
+                (basicRequest.headers['x-bm-date'] || basicRequest.headers.date),
                 canonicalizedHeaders,
                 canonicalizedResource
             ].join('\n');
+            // console.log(JSON.stringify(toSign));
             hash.update(toSign);
             var signature = hash.sign(privatekey, 'base64');
-            this.authorization = {
+            basicRequest.authorization = {
                 scheme: 'BWS',
                 credentials: {
                     principal: 'KNOWN_PRINCIPAL',
                     signature: signature
                 }
             };
-            this.headers.authorization = [
-                this.authorization.scheme, [
-                    this.authorization.credentials.principal,
-                    this.authorization.credentials.signature].join(':')].join(' ');
+            basicRequest.headers.authorization = [
+                basicRequest.authorization.scheme, [
+                    basicRequest.authorization.credentials.principal,
+                    basicRequest.authorization.credentials.signature].join(':')].join(' ');
         };
-        this.basicRequest.sign(this.privatekey);
-
-        this.mock = {
-            keyServer: {
-                conf: {}
-            }
-        };
-
-        var keyServer = this.mock.keyServer;
-
-        var self = this;
-        function startKeyServer(cb) {
-            // Start a minimal key server
-            keyServer.server = http.createServer(function (req, res) {
-                if (req.url == '/api/key/UNKNOWN_PRINCIPAL') {
-                    res.writeHead(404);
-                    res.end();
-                } else if (req.url == '/api/key/500_PRINCIPAL') {
-                    res.writeHead(500);
-                    res.end();
-                } else {
-                    res.writeHead(200, {
-                        'Content-Type': 'text/plain'
-                    });
-                    fs.createReadStream(__dirname + '/pub.key').pipe(res);
-                }
+        // basicRequest.sign(privatekey);
+        checker = Checker({
+            keypath: 'http://localhost/api/key/%s'
+        }, new log());
+        checker.getPublicKey = (principal, terminal, cb) => {
+            fs.readFile(path.join(__dirname, './pub.key'), {encoding: 'utf-8'}, (data) => {
+                cb(null, data);
             });
-            self.mock.keyServer.server.listen(function () {
-                keyServer.conf.port = keyServer.server.address().port;
-                keyServer.conf.address = keyServer.server.address().address;
-                keyServer.conf.family = keyServer.server.address().family;
-
+        };
+        callback();
+    });
+    describe('checks', () => {
+        it('should reject request when public key is not found', (done) => {
+            var res = {};
+    
+            var req = basicRequest;
+            req.authorization.credentials.principal = 'UNKNOWN_PRINCIPAL';
+            checker.getPublicKey = (principal, terminal, cb) => {
                 cb();
+            };
+            checker.middleware(req, res, function (error) {
+                assert.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError ');
+                assert.strictEqual(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
+                done();
             });
-        }
-
-        startKeyServer(function () {
-            var ip = self.mock.keyServer.conf.address;
-            if (self.mock.keyServer.conf.family == 'IPv6') {
-                ip = '[' + self.mock.keyServer.conf.address + ']';
-            }
-            self.checker = checker({
-                keypath: 'http://' + ip + ':' + self.mock.keyServer.conf.port + '/api/key/%s'
-            }, new self.log()).middleware;
-            callback();
         });
-    },
-    'reject request when public key is not found': function (test) {
-        test.expect(2);
 
-        var res = {};
-
-        var req = this.basicRequest;
-        req.authorization.credentials.principal = 'UNKNOWN_PRINCIPAL';
-
-        this.checker(req, res, function (error) {
-            test.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
-            test.equal(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
-            test.done();
+        it('should reject request when public key server return error', function (done) {
+            var res = {};
+            var req = basicRequest;
+            req.authorization.credentials.principal = '500_PRINCIPAL';
+            checker.getPublicKey = (principal, terminal, cb) => {
+                cb(new Error('oups I did it again'));
+            };
+            checker.middleware(req, res, function (error) {
+                assert.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError ');
+                assert.strictEqual(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
+                done();
+            });
         });
-    },
-    'reject request when public key server return error': function (test) {
-        test.expect(2);
-
-        var res = {};
-
-        var req = this.basicRequest;
-        req.authorization.credentials.principal = '500_PRINCIPAL';
-
-        this.checker(req, res, function (error) {
-            test.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
-            test.equal(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
-            test.done();
-        });
-    },
-    'GET request': {
-        setUp: function (callback) {
-            this.basicRequest.headers = {
+    });
+    describe('GET request', () => {
+        beforeEach(callback => {
+            basicRequest.method='GET';
+            basicRequest.headers = {
                 'x-bm-date': new Date().toUTCString()
             };
-            this.basicRequest.sign(this.privatekey);
+            basicRequest.sign(privatekey);
             callback();
-        },
-        'reject request when the signature does not match (Not using content-md5 header)': function (test) {
-            test.expect(2);
-
-            var res = {};
-
-            var req = this.basicRequest;
-            req.authorization.credentials.signature = 'Not matching signature';
-
-            this.checker(req, res, function (error) {
-                test.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
-                test.equal(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
-                test.done();
+        });
+        describe('with sign', () => {
+            it('should reject request when the signature does not match (Not using content-md5 header)', function (done) {
+                var res = {};
+                var req = basicRequest;
+                req.authorization.credentials.signature = 'Not matching signature';
+    
+                checker.middleware(req, res, function (error) {
+                    assert.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError ' + error);
+                    assert.strictEqual(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
+                    done();
+                });
             });
-        },
-        'reject request when a x-bm-* header has been removed': function (test) {
-            test.expect(2);
-
-            var res = {};
-
-            var req = this.basicRequest;
-            req.headers['x-bm-particular'] = 'somevalue';
-            req.sign(this.privatekey);
-            delete req.headers['x-bm-particular'];
-
-            this.checker(req, res, function (error) {
-                test.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
-                test.equal(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
-                test.done();
+            it('should reject request when a x-bm-* header has been removed', function (done) {
+                var res = {};
+                var req = basicRequest;
+                req.headers['x-bm-particular'] = 'somevalue';
+                
+                req.sign(privatekey);
+                delete req.headers['x-bm-particular'];
+    
+                checker.middleware(req, res, function (error) {
+                    assert.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
+                    assert.strictEqual(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
+                    done();
+                });
             });
-        },
-        'accept valid request with x-bm-date header (Not using content-md5 header)': function (test) {
-            test.expect(1);
+            it('should accept valid request with x-bm-date header (Not using content-md5 header)', function (done) {
+                var res = {};
+                var req = basicRequest;
 
-            var res = {};
+                checker.getPublicKey = (principal, terminal, cb) => {
+                    fs.readFile(__dirname + '/pub.key', {encoding: 'utf-8'}, cb);
+                };
 
-            var req = this.basicRequest;
-
-            this.checker(req, res, function (error) {
-                test.ok(error === undefined, 'Must not raise an error');
-                test.done();
+                checker.middleware(req, res, function (error) {
+                    assert.ok(error === undefined, 'Must not raise an error ' + error);
+                    done();
+                });
             });
-        },
-        'accept valid request with date header (Not using content-md5 header)': function (test) {
-            test.expect(1);
-
-            var res = {};
-
-            var req = this.basicRequest;
-            req.headers.date = req.headers['x-bm-date'];
-            delete (req.headers['x-bm-date']);
-            req.sign(this.privatekey);
-
-            this.checker(req, res, function (error) {
-                test.ok(error === undefined, 'Must not raise an error');
-                test.done();
+            it('should accept valid request with date header (Not using content-md5 header)', function (done) {
+                var res = {};
+                var req = basicRequest;
+                req.headers.date = req.headers['x-bm-date'];
+                delete (req.headers['x-bm-date']);
+                checker.getPublicKey = (principal, terminal, cb) => {
+                    fs.readFile(__dirname + '/pub.key', {encoding: 'utf-8'}, cb);
+                };
+                req.sign(privatekey);
+    
+                checker.middleware(req, res, function (error) {
+                    assert.ok(error === undefined, 'Must not raise an error' + error);
+                    done();
+                });
             });
-        }
-    },
-    'POST request': {
-        setUp: function (callback) {
-            this.basicRequest.method = 'POST';
-            this.basicRequest.headers = {
+        });
+    });
+    describe('POST request', () => {
+        beforeEach(callback => {
+            basicRequest.method = 'POST';
+            basicRequest.headers = {
                 'x-bm-date': new Date().toUTCString(),
                 'content-type': 'application/json'
             };
-            this.basicRequest.post = {
+            basicRequest.post = {
                 data: {
                     key: 'value'
                 },
                 json: true
             };
-            this.basicRequest.headers['content-md5'] = crypto.createHash('md5').update((this.basicRequest.post.json ? JSON.stringify(this.basicRequest.post.data) : this.basicRequest.post.data)).digest("base64");
-            this.basicRequest.sign(this.privatekey);
-            callback();
-        },
-        'reject request when the signature does not match (Using content-md5 header)': function (test) {
-            test.expect(2);
-
-            var res = {};
-
-            var req = this.basicRequest;
-            req.authorization.credentials.signature = 'Not matching signature';
-
-            this.checker(req, res, function (error) {
-                test.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
-                test.equal(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
-                test.done();
-            });
-        },
-        'reject request when a x-bm-* header has been removed': function (test) {
-            test.expect(2);
-
-            var res = {};
-
-            var req = this.basicRequest;
-            req.headers['x-bm-particular'] = 'somevalue';
-            req.sign(this.privatekey);
-            delete req.headers['x-bm-particular'];
-
-            this.checker(req, res, function (error) {
-                test.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
-                test.equal(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
-                test.done();
-            });
-        },
-        'accept valid request with x-bm-date header (Using content-md5 header)': function (test) {
-            test.expect(1);
-
-            var res = {};
-
-            var req = this.basicRequest;
-
-            this.checker(req, res, function (error) {
-                test.ok(error === undefined, 'Must not raise an error');
-                test.done();
-            });
-        },
-        'accept valid request with date header (Using content-md5 header)': function (test) {
-            test.expect(1);
-
-            var res = {};
-
-            var req = this.basicRequest;
-            req.headers.date = req.headers['x-bm-date'];
-            delete (req.headers['x-bm-date']);
-            req.sign(this.privatekey);
-
-            this.checker(req, res, function (error) {
-                test.ok(error === undefined, 'Must not raise an error');
-                test.done();
-            });
-        }
-    },
-    'PUT request': {
-        setUp: function (callback) {
-            this.basicRequest.method = 'PUT';
-            this.basicRequest.headers = {
-                'x-bm-date': new Date().toUTCString(),
-                'content-type': 'application/json'
-            };
-            this.basicRequest.post = {
-                data: {
-                    key: 'value'
-                },
-                json: true
-            };
-            this.basicRequest.headers['content-md5'] = crypto.createHash('md5').update((this.basicRequest.post.json ? JSON.stringify(this.basicRequest.post.data) : this.basicRequest.post.data)).digest("base64");
-
-            this.basicRequest.sign(this.privatekey);
-            callback();
-        },
-        'reject request when the signature does not match (Using content-md5 header)': function (test) {
-            test.expect(2);
-
-            var res = {};
-
-            var req = this.basicRequest;
-            req.authorization.credentials.signature = 'Not matching signature';
-
-            this.checker(req, res, function (error) {
-                test.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
-                test.equal(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
-                test.done();
-            });
-        },
-        'reject request when a x-bm-* header has been removed': function (test) {
-            test.expect(2);
-
-            var res = {};
-
-            var req = this.basicRequest;
-            req.headers['x-bm-particular'] = 'somevalue';
-            req.sign(this.privatekey);
-            delete req.headers['x-bm-particular'];
-
-            this.checker(req, res, function (error) {
-                test.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
-                test.equal(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
-                test.done();
-            });
-        },
-        'accept valid request with x-bm-date header (Using content-md5 header)': function (test) {
-            test.expect(1);
-
-            var res = {};
-
-            var req = this.basicRequest;
-
-            this.checker(req, res, function (error) {
-                test.ok(error === undefined, 'Must not raise an error');
-                test.done();
-            });
-        },
-        'accept valid request with date header (Using content-md5 header)': function (test) {
-            test.expect(1);
-
-            var res = {};
-
-            var req = this.basicRequest;
-            req.headers.date = req.headers['x-bm-date'];
-            delete (req.headers['x-bm-date']);
-            req.sign(this.privatekey);
-
-            this.checker(req, res, function (error) {
-                test.ok(error === undefined, 'Must not raise an error');
-                test.done();
-            });
-        }
-    },
-    'DELETE request': {
-        setUp: function (callback) {
-            this.basicRequest.method = 'DELETE';
-            this.basicRequest.headers = {
-                'x-bm-date': new Date().toUTCString()
-            };
-            this.basicRequest.sign(this.privatekey);
-            callback();
-        },
-        'reject request when the signature does not match (Not using content-md5 header)': function (test) {
-            test.expect(2);
-
-            var res = {};
-
-            var req = this.basicRequest;
-            req.authorization.credentials.signature = 'Not matching signature';
-
-            this.checker(req, res, function (error) {
-                test.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
-                test.equal(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
-                test.done();
-            });
-        },
-        'reject request when a x-bm-* header has been removed': function (test) {
-            test.expect(2);
-
-            var res = {};
-
-            var req = this.basicRequest;
-            req.headers['x-bm-particular'] = 'somevalue';
-            req.sign(this.privatekey);
-            delete req.headers['x-bm-particular'];
-
-            this.checker(req, res, function (error) {
-                test.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
-                test.equal(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
-                test.done();
-            });
-        },
-        'accept valid request with x-bm-date header (Not using content-md5 header)': function (test) {
-            test.expect(1);
-
-            var res = {};
-
-            var req = this.basicRequest;
-
-            this.checker(req, res, function (error) {
-                test.ok(error === undefined, 'Must not raise an error');
-                test.done();
-            });
-        },
-        'accept valid request with date header (Not using content-md5 header)': function (test) {
-            test.expect(1);
-
-            var res = {};
-
-            var req = this.basicRequest;
-            req.headers.date = req.headers['x-bm-date'];
-            delete (req.headers['x-bm-date']);
-            req.sign(this.privatekey);
-
-            this.checker(req, res, function (error) {
-                test.ok(error === undefined, 'Must not raise an error');
-                test.done();
-            });
-        }
-    },
-    tearDown: function (callback) {
-        this.mock.keyServer.server.close(function () {
+            basicRequest.headers['content-md5'] = crypto.createHash('md5').update((basicRequest.post.json ? JSON.stringify(basicRequest.post.data) : basicRequest.post.data)).digest("base64");
+            basicRequest.sign(privatekey);
             callback();
         });
-    }
-};
+        describe('with sign and body', () => {
+            it('reject request when the signature does not match (Using content-md5 header)', (done) => {
+                var res = {};
+                var req = basicRequest;
+                req.authorization.credentials.signature = 'Not matching signature';
+                checker.getPublicKey = (principal, terminal, cb) => {
+                    fs.readFile(__dirname + '/pub.key', {encoding: 'utf-8'}, cb);
+                };
+                checker.middleware(req, res, function (error) {
+                    assert.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
+                    assert.strictEqual(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
+                    done();
+                });
+            });
+            it('reject request when a x-bm-* header has been removed', (done) => {
+                var res = {};
+                var req = basicRequest;
+                req.headers['x-bm-particular'] = 'somevalue';
+                req.sign(privatekey);
+                delete req.headers['x-bm-particular'];
+                checker.getPublicKey = (principal, terminal, cb) => {
+                    fs.readFile(__dirname + '/pub.key', {encoding: 'utf-8'}, cb);
+                };
+                checker.middleware(req, res, function (error) {
+                    assert.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
+                    assert.strictEqual(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
+                    done();
+                });
+            });
+            it('accept valid request with x-bm-date header (Using content-md5 header)', (done) => {
+                var res = {};
+                var req = basicRequest;
+
+                checker.getPublicKey = (principal, terminal, cb) => {
+                    fs.readFile(__dirname + '/pub.key', {encoding: 'utf-8'}, cb);
+                };
+                checker.middleware(req, res, function (error) {
+                    assert.ok(error === undefined, 'Must not raise an error');
+                    done();
+                });
+            });
+            it('accept valid request with date header (Using content-md5 header)', (done) => {
+                var res = {};
+                var req = basicRequest;
+                req.headers.date = req.headers['x-bm-date'];
+                delete (req.headers['x-bm-date']);
+                req.sign(privatekey);
+                checker.getPublicKey = (principal, terminal, cb) => {
+                    fs.readFile(__dirname + '/pub.key', {encoding: 'utf-8'}, cb);
+                };
+                checker.middleware(req, res, function (error) {
+                    assert.ok(error === undefined, 'Must not raise an error');
+                    done();
+                });
+            });
+        });
+        describe('PUT request', () => {
+            beforeEach(function (callback) {
+                basicRequest.method = 'PUT';
+                basicRequest.headers = {
+                    'x-bm-date': new Date().toUTCString(),
+                    'content-type': 'application/json'
+                };
+                basicRequest.post = {
+                    data: {
+                        key: 'value'
+                    },
+                    json: true
+                };
+                basicRequest.headers['content-md5'] = crypto.createHash('md5').update((basicRequest.post.json ? JSON.stringify(basicRequest.post.data) : basicRequest.post.data)).digest("base64");
+    
+                basicRequest.sign(privatekey);
+                callback();
+            });
+            describe('check PUT request with body', () => {
+
+                it('reject request when the signature does not match (Using content-md5 header)', (done) => {
+                    var res = {};
+                    var req = basicRequest;
+                    req.authorization.credentials.signature = 'Not matching signature';
+                    checker.getPublicKey = (principal, terminal, cb) => {
+                        fs.readFile(__dirname + '/pub.key', {encoding: 'utf-8'}, cb);
+                    };
+                    checker.middleware(req, res, function (error) {
+                        assert.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
+                        assert.equal(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
+                        done();
+                    });
+                });
+                it('reject request when a x-bm-* header has been removed', (done) => {
+                    var res = {};
+                    var req = basicRequest;
+                    req.headers['x-bm-particular'] = 'somevalue';
+                    req.sign(privatekey);
+                    delete req.headers['x-bm-particular'];
+                    checker.getPublicKey = (principal, terminal, cb) => {
+                        fs.readFile(__dirname + '/pub.key', {encoding: 'utf-8'}, cb);
+                    };
+                    checker.middleware(req, res, function (error) {
+                        assert.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
+                        assert.equal(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
+                        done();
+                    });
+                });
+                it('accept valid request with x-bm-date header (Using content-md5 header)', (done) => {
+                    var res = {};
+                    var req = basicRequest;
+                    checker.getPublicKey = (principal, terminal, cb) => {
+                        fs.readFile(__dirname + '/pub.key', {encoding: 'utf-8'}, cb);
+                    };
+                    checker.middleware(req, res, function (error) {
+                        assert.ok(error === undefined, 'Must not raise an error');
+                        done();
+                    });
+                });
+                it('accept valid request with date header (Using content-md5 header)', (done) => {
+                    var res = {};
+                    var req = basicRequest;
+                    req.headers.date = req.headers['x-bm-date'];
+                    delete (req.headers['x-bm-date']);
+                    req.sign(privatekey);
+                    checker.getPublicKey = (principal, terminal, cb) => {
+                        fs.readFile(__dirname + '/pub.key', {encoding: 'utf-8'}, cb);
+                    };
+                    checker.middleware(req, res, function (error) {
+                        assert.ok(error === undefined, 'Must not raise an error');
+                        done();
+                    });
+                });
+            });
+        });
+        describe('DELETE requets', () => {
+            beforeEach(function (callback) {
+                basicRequest.method = 'DELETE';
+                basicRequest.headers = {
+                    'x-bm-date': new Date().toUTCString()
+                };
+                basicRequest.sign(privatekey);
+                callback();
+            });
+            describe('check DELETE requests', () => {
+                it('reject request when the signature does not match (Not using content-md5 header)', (done) => {
+                    var res = {};
+                    var req = basicRequest;
+                    req.authorization.credentials.signature = 'Not matching signature';
+                    checker.getPublicKey = (principal, terminal, cb) => {
+                        fs.readFile(__dirname + '/pub.key', {encoding: 'utf-8'}, cb);
+                    };
+                    checker.middleware(req, res, function (error) {
+                        assert.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
+                        assert.strictEqual(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
+                        done();
+                    });
+                });
+            });
+        });
+
+        it('reject request when a x-bm-* header has been removed', (done) => {
+            var res = {};
+            var req = basicRequest;
+            req.headers['x-bm-particular'] = 'somevalue';
+            req.sign(privatekey);
+            delete req.headers['x-bm-particular'];
+            checker.getPublicKey = (principal, terminal, cb) => {
+                fs.readFile(__dirname + '/pub.key', {encoding: 'utf-8'}, cb);
+            };  
+            checker.middleware(req, res, function (error) {
+                assert.ok(error instanceof errors.NotAuthorizedError, 'Must raise a NotAuthorizedError');
+                assert.strictEqual(error.message, 'invalid signature', 'Must raise an error with message invalid signature');
+                done();
+            });
+        });
+        it('accept valid request with x-bm-date header (Not using content-md5 header)', (done) => {
+            var res = {};
+            var req = basicRequest;
+            checker.getPublicKey = (principal, terminal, cb) => {
+                fs.readFile(__dirname + '/pub.key', {encoding: 'utf-8'}, cb);
+            };
+            checker.middleware(req, res, function (error) {
+                assert.ok(error === undefined, 'Must not raise an error');
+                done();
+            });
+        });
+        it('accept valid request with date header (Not using content-md5 header)', (done) => {
+            var res = {};
+            var req = basicRequest;
+            req.headers.date = req.headers['x-bm-date'];
+            delete (req.headers['x-bm-date']);
+            req.sign(privatekey);
+            checker.getPublicKey = (principal, terminal, cb) => {
+                fs.readFile(__dirname + '/pub.key', {encoding: 'utf-8'}, cb);
+            };
+            checker.middleware(req, res, function (error) {
+                assert.ok(error === undefined, 'Must not raise an error');
+                done();
+            });
+        });
+    });
+});
